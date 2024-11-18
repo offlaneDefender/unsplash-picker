@@ -3,7 +3,7 @@ import usePicsStore from "@/store";
 import { useRouter } from "next/navigation";
 
 export default function Approval() {
-    const { picRes, setSelectedImageIndex, tempIndex, setTempIndex } = usePicsStore();
+    const { picRes, name, surname, addImageToSelection, tempIndex, setTempIndex } = usePicsStore();
     const router = useRouter();
     if (tempIndex > picRes.length - 1) {
         return <div> No more images to show </div>
@@ -13,7 +13,7 @@ export default function Approval() {
         <div className="grid bg-slate-400 items-center justify-center justify-items-center">
             <div className="flex gap-3">
                 <button className="bg-green-200 text-black p-1 rounded shadow" onClick={() => {
-                    setSelectedImageIndex(tempIndex);
+                    addImageToSelection({pic, name, surname});
                     router.push('/')
                 }}>Approve</button>
                 <button className="bg-red-200 text-black p-1 rounded shadow" onClick={() => setTempIndex(tempIndex + 1)}>Reject</button>

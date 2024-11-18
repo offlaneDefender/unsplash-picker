@@ -11,19 +11,18 @@ const unsplash = createApi({
 });
 
 export default function Home() {
-  const { name, setName, surname, setSurname, preferences, selectedPreference, setSelectedPreference, otherPreference, setOtherPreference, picRes, setpicRes, selectedImageIndex, setSelectedImageIndex, tempIndex, setTempIndex } = usePicsStore();
+  const { name, setName, surname, setSurname, preferences, selectedPreference, setSelectedPreference, otherPreference, setOtherPreference, picRes, setpicRes, selectedImages, setTempIndex } = usePicsStore();
 
   const router = useRouter();
 
   const fetchImages = async () => {
-    setSelectedImageIndex(-1);
     setpicRes([]);
     setTempIndex(0);
 
     const finalPref = selectedPreference === "Other" ? otherPreference : selectedPreference;
     const response = await unsplash.search.getPhotos({
       query: finalPref,
-      perPage: 10,
+      perPage: 30,
     }).then(res => res.response)
       .catch(err => console.log(err));
 
@@ -32,34 +31,12 @@ export default function Home() {
     router.push('/approval');
   }
 
-  const imageApprovalView = (index: number) => {
-    if (index > picRes.length - 1) {
-      return <div> No more images to show </div>
-    }
-    const pic = picRes[index] as any;
-    return (
-      <div className="grid grid-cols-3">
-        <div className="flex gap-3">
-          <button onClick={() => setSelectedImageIndex(index)}>Approve</button>
-          <button onClick={() => setTempIndex(tempIndex + 1)}>Reject</button>
-        </div>
-        <img key={pic.id} src={pic.urls.regular} alt={pic.alt_description} />
-      </div>
-    )
-  }
-
   const submitDisabled = useMemo(() => {
     return selectedPreference === "" || (selectedPreference === "Other" &&
       otherPreference === "" || name === "" || surname === ""
     )
   }
-    , [selectedPreference, otherPreference, name, surname])
-
-  /**
-   * refactor asa server componetns
-   * accepted image is added to list, one card per image
-   * refetch images if no more images
-   */
+    , [selectedPreference, otherPreference, name, surname]);
 
   return (
     <div className="bg-slate-400 grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
@@ -85,14 +62,17 @@ export default function Home() {
           </button>
           {submitDisabled && <p className="text-red-500">Please fill in all fields</p>}
         </div>
-        {selectedImageIndex !== -1 && picRes.length > 0 &&
-          <div className="flex flex-col gap-4 rounded shadow bg-slate-200 p-2">
-            <p className="text-black">{name} {surname}</p>
-            <img key={(picRes[selectedImageIndex] as any).id} src={(picRes[selectedImageIndex] as any).urls.thumb} alt={(picRes[selectedImageIndex] as any).alt_description} />
-          </div>}
+        <div className="grid grid-cols-3 bg-slate-400 gap-4">
+          {picRes.length > 0 &&
+            selectedImages.length > 0 &&
+            selectedImages.map((image) => (
+              <div key={image.pic.id} className="flex flex-col gap-4 rounded shadow bg-slate-200 p-2">
+                <p className="text-black">{image.name} {image.surname}</p>
+                <img src={image.pic.urls.thumb} alt={image.pic.alt_description} />
+              </div>
+            ))}
+        </div>
       </main>
-      <footer className="row-start-3 </div>flex gap-6 flex-wrap items-center justify-center">
-      </footer>
     </div>
   );
 }
