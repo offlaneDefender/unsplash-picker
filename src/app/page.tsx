@@ -1,101 +1,100 @@
-import Image from "next/image";
+"use client"
+import usePicsStore from "@/store";
+import { useRouter } from "next/navigation";
+import { useMemo } from "react";
+import { createApi } from "unsplash-js";
+
+const MY_ACCESS_KEY = process.env.NEXT_PUBLIC_UNSPLASH_ACCES_KEY ?? "";
+
+const unsplash = createApi({
+  accessKey: MY_ACCESS_KEY,
+});
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const { name, setName, surname, setSurname, preferences, selectedPreference, setSelectedPreference, otherPreference, setOtherPreference, picRes, setpicRes, selectedImageIndex, setSelectedImageIndex, tempIndex, setTempIndex } = usePicsStore();
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const router = useRouter();
+
+  const fetchImages = async () => {
+    setSelectedImageIndex(-1);
+    setpicRes([]);
+    setTempIndex(0);
+
+    const finalPref = selectedPreference === "Other" ? otherPreference : selectedPreference;
+    const response = await unsplash.search.getPhotos({
+      query: finalPref,
+      perPage: 10,
+    }).then(res => res.response)
+      .catch(err => console.log(err));
+
+    setpicRes((response?.results as []) ?? []);
+
+    router.push('/approval');
+  }
+
+  const imageApprovalView = (index: number) => {
+    if (index > picRes.length - 1) {
+      return <div> No more images to show </div>
+    }
+    const pic = picRes[index] as any;
+    return (
+      <div className="grid grid-cols-3">
+        <div className="flex gap-3">
+          <button onClick={() => setSelectedImageIndex(index)}>Approve</button>
+          <button onClick={() => setTempIndex(tempIndex + 1)}>Reject</button>
         </div>
+        <img key={pic.id} src={pic.urls.regular} alt={pic.alt_description} />
+      </div>
+    )
+  }
+
+  const submitDisabled = useMemo(() => {
+    return selectedPreference === "" || (selectedPreference === "Other" &&
+      otherPreference === "" || name === "" || surname === ""
+    )
+  }
+    , [selectedPreference, otherPreference, name, surname])
+
+  /**
+   * refactor asa server componetns
+   * accepted image is added to list, one card per image
+   * refetch images if no more images
+   */
+
+  return (
+    <div className="bg-slate-400 grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
+      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
+        <div className="flex gap-4 items-center flex-col sm:flex-row">
+          <input autoFocus className="text-black p-1" type="text" placeholder="Name*" value={name} onChange={(e) => setName(e.target.value)} />
+          <input className="text-black p-1" type="text" placeholder="Surname*" value={surname} onChange={(e) => setSurname(e.target.value)} />
+          <select className="text-black p-1" value={selectedPreference} onChange={(e) => setSelectedPreference(e.target.value)}>
+            <option value="" disabled>Select Preference*</option>
+            {preferences.map((preference) => (
+              <option key={preference} value={preference}>
+                {preference}
+              </option>
+            ))}
+          </select>
+          {selectedPreference === "Other" && (
+            <input className="text-black p-1" type="text" placeholder="Other Preference" value={otherPreference} onChange={(e) => setOtherPreference(e.target.value)} />
+          )}
+        </div>
+        <div className="flex gap-4 items-center flex-col sm:flex-row">
+          <button disabled={submitDisabled} className="p-2 bg-white text-black cursor-auto disabled:opacity-50 disabled:border-red-500 disabled:border-2" onClick={fetchImages}>
+            Submit
+          </button>
+          {submitDisabled && <p className="text-red-500">Please fill in all fields</p>}
+        </div>
+        {selectedImageIndex !== -1 && picRes.length > 0 &&
+          <div className="flex flex-col gap-4 rounded shadow bg-slate-200 p-2">
+            <p className="text-black">{name} {surname}</p>
+            <img key={(picRes[selectedImageIndex] as any).id} src={(picRes[selectedImageIndex] as any).urls.thumb} alt={(picRes[selectedImageIndex] as any).alt_description} />
+          </div>}
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+      <footer className="row-start-3 </div>flex gap-6 flex-wrap items-center justify-center">
       </footer>
     </div>
   );
 }
+
+
